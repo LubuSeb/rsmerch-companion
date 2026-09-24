@@ -299,13 +299,13 @@ public final class RsMerchPlugin extends Plugin {
             view.archive.error=archiveError;
             view.recoveredPerformance=Performance.recovered(view.archive);
             boolean healthy=token!=null && !switching && journal!=null && error==null;
-            String status=error!=null ? "Recording stopped · check Desk" : healthy ? "Recording · "+b.fills.size()+" fills" : token==null ? "Offline · saved trades retained" : "Opening account journal…";
+            String status=error!=null ? "Recording stopped · check Stock" : healthy ? "Recording · "+b.fills.size()+" fills" : token==null ? "Offline · saved trades retained" : "Opening account journal…";
             String detail=journal==null ? "Log in to begin a local account journal." : "Last disk save: "+DeskView.time(journal.lastSavedAt())+" · "+journal.recordCount()+" saved records · "+journal.path;
             SwingUtilities.invokeLater(() -> { panel.show(view,token); panel.recordingStatus(status,detail,healthy); });
         } catch (Exception ex) {
             SwingUtilities.invokeLater(() -> {
                 panel.show(DeskView.build(new Book(),new Research(),System.currentTimeMillis(),0,7,"Panel unavailable",ex.getMessage()),null);
-                panel.recordingStatus("Panel unavailable · check Desk",ex.getMessage(),false);
+                panel.recordingStatus("Panel unavailable · check Stock",ex.getMessage(),false);
             });
         }
     }
