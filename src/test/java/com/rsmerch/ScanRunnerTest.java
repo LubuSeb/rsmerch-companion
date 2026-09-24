@@ -13,14 +13,14 @@ public class ScanRunnerTest {
     @Rule public TemporaryFolder temp=new TemporaryFolder();
     @Test public void missingInstallationReturnsUsefulErrorWithoutStartingProcess() throws Exception {
         CountDownLatch complete=new CountDownLatch(1); AtomicReference<String> error=new AtomicReference<>();
-        try (ScanRunner runner=new ScanRunner()) {
+        try (ScanRunner runner=new ScanRunner((cash,members,progress) -> { throw new AssertionError("No market request expected"); })) {
             assertTrue(runner.start("",1_000_000,s -> {},s -> { error.set(s); complete.countDown(); }));
             assertTrue(complete.await(3,TimeUnit.SECONDS));
             assertTrue(error.get().contains("location is missing"));
         }
     }
     @Test public void shutdownRejectsFurtherScans() {
-        ScanRunner runner=new ScanRunner(); runner.close();
+        ScanRunner runner=new ScanRunner((cash,members,progress) -> { throw new AssertionError("No market request expected"); }); runner.close();
         assertFalse(runner.start("anything",1_000_000,s -> {},s -> {}));
     }
     @Test public void failedScanRetainsPreviousReportAndRejectsOverlappingScan() throws Exception {

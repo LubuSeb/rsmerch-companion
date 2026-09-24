@@ -15,7 +15,7 @@ public final class HistoryArchive {
     static final String RUNELITE="runelite", SCREEN="ge-screen";
     private final Path directory;
     private final String account;
-    private final Gson gson=new Gson();
+    private final Gson gson;
     private final Map<String,Snapshot> snapshots=new LinkedHashMap<>();
     public static final class Row {
         public int item;
@@ -51,9 +51,9 @@ public final class HistoryArchive {
         public final List<Entry> entries=new ArrayList<>();
         @Override public String toString() { return DeskView.time(at)+" · "+entries.size()+" rows"; }
     }
-    public HistoryArchive(Path accountDirectory,String account) throws IOException {
+    public HistoryArchive(Path accountDirectory,String account,Gson gson) throws IOException {
         if (!account.matches("[0-9a-f]{24}")) { throw new IOException("Invalid archive account key"); }
-        this.directory=accountDirectory.resolve("history-v1"); this.account=account;
+        this.directory=accountDirectory.resolve("history-v1"); this.account=account; this.gson=Objects.requireNonNull(gson);
         if (Files.exists(directory)) {
             try (DirectoryStream<Path> files=Files.newDirectoryStream(directory,"*.json")) {
                 for (Path file:files) {

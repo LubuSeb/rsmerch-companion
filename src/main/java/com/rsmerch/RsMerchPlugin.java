@@ -30,6 +30,7 @@ public final class RsMerchPlugin extends Plugin {
     @Inject private RsMerchConfig config;
     @Inject private ConfigManager configManager;
     @Inject private okhttp3.OkHttpClient http;
+    @Inject private com.google.gson.Gson gson;
     private ScanRunner scanner;
     private WikiClient wikiClient;
     private ExecutorService marketWorker;
@@ -61,7 +62,7 @@ public final class RsMerchPlugin extends Plugin {
         worker=Executors.newSingleThreadScheduledExecutor(r -> { Thread t=new Thread(r,"rsmerch-journal"); t.setDaemon(true); return t; });
         wikiClient=new WikiClient(http); scanner=new ScanRunner(wikiClient);
         marketWorker=Executors.newSingleThreadExecutor(r -> { Thread t=new Thread(r,"rsmerch-wiki-prices"); t.setDaemon(true); return t; });
-        marketWorker.execute(() -> { wiki=WikiPrices.load(wikiPath()); });
+        marketWorker.execute(() -> { wiki=WikiPrices.load(wikiPath(),gson); });
         Runnable create=() -> {
             panel=new DeskPanel(this::manual,this::export,this::scan,this::refreshWiki);
             BufferedImage icon=new BufferedImage(16,16,BufferedImage.TYPE_INT_ARGB);
@@ -154,11 +155,11 @@ public final class RsMerchPlugin extends Plugin {
         try {
             if (journal!=null) { journal.close(); journal=null; }
             journalKey=key;
-            journal=new Journal(RuneLite.RUNELITE_DIR.toPath().resolve("rsmerch").resolve(key).resolve("events-v1.jsonl"));
+            journal=new Journal(RuneLite.RUNELITE_DIR.toPath().resolve("rsmerch").resolve(key).resolve("events-v1.jsonl"),gson);
             error=null;
         } catch (Exception ex) { error=ex.getMessage(); }
         archive=null; archiveError=null;
-        try { archive=new HistoryArchive(RuneLite.RUNELITE_DIR.toPath().resolve("rsmerch").resolve(key),key); }
+        try { archive=new HistoryArchive(RuneLite.RUNELITE_DIR.toPath().resolve("rsmerch").resolve(key),key,gson); }
         catch (Exception ex) { archiveError=ex.getMessage(); }
         render();
     }
@@ -250,7 +251,7 @@ public final class RsMerchPlugin extends Plugin {
         if (!refreshingWiki.compareAndSet(false,true)) { return; }
         panel.wikiState(true);
         marketWorker.execute(() -> {
-            try { WikiPrices next=WikiPrices.fetch(wikiClient); next.save(wikiPath()); wiki=next; }
+            try { WikiPrices next=WikiPrices.fetch(wikiClient); next.save(wikiPath(),gson); wiki=next; }
             catch (Exception ex) {
                 WikiPrices failed=new WikiPrices(); failed.quotes.putAll(wiki.quotes); failed.fetchedAt=wiki.fetchedAt;
                 failed.fiveAt=wiki.fiveAt; failed.hourAt=wiki.hourAt; failed.error=ex.getMessage(); wiki=failed;

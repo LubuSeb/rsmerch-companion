@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
-import okhttp3.OkHttpClient;
 
 /** User-triggered Java research, isolated from Swing and the trade journal. */
 final class ScanRunner implements AutoCloseable {
@@ -16,7 +15,6 @@ final class ScanRunner implements AutoCloseable {
     private final Task task;
     private boolean busy;
     private volatile boolean closed;
-    ScanRunner() { this(new WikiClient(new OkHttpClient())); }
     ScanRunner(WikiClient client) { this(new MarketScanner(client)::scan); }
     ScanRunner(Task task) { this.task=task; }
     synchronized boolean start(String report,long cash,Consumer<String> progress,Consumer<String> done) { return start(report,cash,true,progress,done); }

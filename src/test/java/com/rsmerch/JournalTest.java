@@ -11,7 +11,7 @@ public class JournalTest {
     @Rule public TemporaryFolder temp=new TemporaryFolder();
     @Test public void replayMatchesLiveAndDuplicateIdentityIsIdempotent() throws Exception {
         Path file=temp.getRoot().toPath().resolve("events.jsonl");
-        try (Journal j=new Journal(file)) {
+        try (Journal j=new Journal(file, net.runelite.http.api.RuneLiteAPI.GSON)) {
             assertEquals(0,j.recordCount()); assertEquals(0,j.lastSavedAt());
             Event empty=BookTest.offer("0",0,"EMPTY",0,0); assertTrue(j.append(empty)); assertFalse(j.append(empty));
             assertEquals(1,j.recordCount()); assertTrue(j.lastSavedAt()>0);
@@ -21,7 +21,7 @@ public class JournalTest {
             assertEquals(10,j.book.position(1763,null).quantity());
             j.exportFills(temp.getRoot().toPath().resolve("fills.csv"));
         }
-        try (Journal j=new Journal(file)) {
+        try (Journal j=new Journal(file, net.runelite.http.api.RuneLiteAPI.GSON)) {
             assertEquals(4499,j.book.position(1763,null).knownCost(),0.001); assertEquals(1,j.book.fills.size());
             assertEquals(3,j.recordCount()); assertTrue(j.lastSavedAt()>0);
         }
@@ -29,22 +29,36 @@ public class JournalTest {
     }
     @Test public void secondWriterIsRejectedWithoutDamagingFirst() throws Exception {
         Path file=temp.getRoot().toPath().resolve("events.jsonl");
-        try (Journal j=new Journal(file)) {
-            assertThrows(OverlappingFileLockException.class,() -> new Journal(file));
+        try (Journal j=new Journal(file, net.runelite.http.api.RuneLiteAPI.GSON)) {
+            assertThrows(OverlappingFileLockException.class,() -> new Journal(file, net.runelite.http.api.RuneLiteAPI.GSON));
             assertTrue(j.append(BookTest.offer("0",0,"EMPTY",0,0)));
         }
     }
     @Test public void truncatedOrCorruptJournalFailsClosed() throws Exception {
         Path file=temp.getRoot().toPath().resolve("events.jsonl");
         Files.writeString(file,"{\"version\":1");
-        assertThrows(IOException.class,() -> new Journal(file));
+        assertThrows(IOException.class,() -> new Journal(file, net.runelite.http.api.RuneLiteAPI.GSON));
         assertEquals("{\"version\":1",Files.readString(file));
         Files.writeString(file,"{}\n");
-        assertThrows(IOException.class,() -> new Journal(file));
+        assertThrows(IOException.class,() -> new Journal(file, net.runelite.http.api.RuneLiteAPI.GSON));
     }
     @Test public void stableAccountKeysAreSeparatedAndContainNoDisplayNames() {
         assertEquals(RsMerchPlugin.accountKey(7),RsMerchPlugin.accountKey(7));
         assertNotEquals(RsMerchPlugin.accountKey(7),RsMerchPlugin.accountKey(8));
         assertTrue(RsMerchPlugin.accountKey(-123).matches("[0-9a-f]{24}"));
+    }
+    @Test public void clientGsonReplaysLegacyJournalAndKeepsOneRecordPerLine() throws Exception {
+        Path file=temp.getRoot().toPath().resolve("legacy.jsonl");
+        Event baseline=BookTest.offer("legacy",0,"EMPTY",0,0);
+        Files.writeString(file,new com.google.gson.Gson().toJson(baseline)+"\n");
+        try (Journal j=new Journal(file,net.runelite.http.api.RuneLiteAPI.GSON)) {
+            assertEquals(1,j.recordCount()); assertFalse(j.append(baseline));
+            j.append(BookTest.offer("purchase",1,"BOUGHT",10,4500));
+        }
+        assertEquals(2,Files.readAllLines(file).size());
+        try (Journal j=new Journal(file,net.runelite.http.api.RuneLiteAPI.GSON)) {
+            assertEquals(2,j.recordCount()); assertEquals(10,j.book.position(1763,null).quantity());
+            assertEquals(4500,j.book.position(1763,null).knownCost(),0.001);
+        }
     }
 }

@@ -22,8 +22,8 @@ public class WikiPricesTest {
     }
     @Test public void cacheRoundTripPreservesWindowAndVolumes() throws Exception {
         WikiPrices data=WikiPrices.parse(json("{\"data\":{\"1\":{\"high\":100,\"highTime\":100,\"low\":90,\"lowTime\":95}}}"),json("{\"timestamp\":60,\"data\":{}}"),json("{\"timestamp\":1,\"data\":{\"1\":{\"avgHighPrice\":99,\"highPriceVolume\":17,\"avgLowPrice\":91,\"lowPriceVolume\":22}}}"),100000);
-        Path path=temp.getRoot().toPath().resolve("cache.json"); data.save(path); WikiPrices loaded=WikiPrices.load(path);
+        Path path=temp.getRoot().toPath().resolve("cache.json"); data.save(path,net.runelite.http.api.RuneLiteAPI.GSON); WikiPrices loaded=WikiPrices.load(path,net.runelite.http.api.RuneLiteAPI.GSON);
         assertNull(loaded.error); assertEquals(1000,loaded.hourAt); assertEquals(17,loaded.quotes.get(1).hourHighVolume); assertEquals(22,loaded.quotes.get(1).hourLowVolume);
-        Files.writeString(path,"broken"); assertNotNull(WikiPrices.load(path).error);
+        Files.writeString(path,"broken"); assertNotNull(WikiPrices.load(path,net.runelite.http.api.RuneLiteAPI.GSON).error);
     }
 }

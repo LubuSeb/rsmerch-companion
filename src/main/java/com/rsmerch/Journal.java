@@ -12,14 +12,14 @@ import java.util.*;
 public final class Journal implements AutoCloseable {
     public final Book book = new Book();
     public final Path path;
-    private final Gson gson = new Gson();
+    private final Gson gson;
     private final Map<String,String> seen = new HashMap<>();
     private final FileChannel channel;
     private final FileLock lock;
     private long lastSavedAt;
 
-    public Journal(Path path) throws IOException {
-        this.path=path;
+    public Journal(Path path, Gson gson) throws IOException {
+        this.path=path; this.gson=Objects.requireNonNull(gson);
         Files.createDirectories(path.toAbsolutePath().getParent());
         channel=FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
         FileLock acquired=null;

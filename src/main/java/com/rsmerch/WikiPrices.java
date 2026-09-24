@@ -41,18 +41,18 @@ final class WikiPrices {
         }
         return result;
     }
-    static WikiPrices load(Path path) {
+    static WikiPrices load(Path path,Gson gson) {
         try {
             if (!Files.exists(path)) { return new WikiPrices(); }
             if (Files.size(path)>12_000_000) { throw new IOException("Saved market data is too large"); }
-            WikiPrices result=new Gson().fromJson(Files.readString(path),WikiPrices.class);
+            WikiPrices result=gson.fromJson(Files.readString(path),WikiPrices.class);
             if (result==null || result.quotes==null || result.fetchedAt<=0) { throw new IOException("Saved market data is invalid"); }
             return result;
         } catch (Exception ex) { WikiPrices result=new WikiPrices(); result.error="Saved Wiki prices could not be read. Refresh prices."; return result; }
     }
-    void save(Path path) throws IOException {
+    void save(Path path,Gson gson) throws IOException {
         Files.createDirectories(path.getParent()); Path temporary=Files.createTempFile(path.getParent(),"wiki-",".tmp");
-        try { Files.writeString(temporary,new Gson().toJson(this)); Files.move(temporary,path,StandardCopyOption.REPLACE_EXISTING); }
+        try { Files.writeString(temporary,gson.toJson(this)); Files.move(temporary,path,StandardCopyOption.REPLACE_EXISTING); }
         finally { Files.deleteIfExists(temporary); }
     }
 }
