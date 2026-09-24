@@ -1,0 +1,53 @@
+plugins { id 'java' }
+
+repositories {
+	maven {
+		url = 'https://repo.runelite.net'
+		content { includeGroupByRegex('net\\.runelite.*') }
+	}
+	mavenCentral()
+}
+
+group = 'com.rsmerch'
+version = '0.4.0'
+def runeLiteVersion = '1.12.39'
+
+dependencies {
+	compileOnly "net.runelite:client:${runeLiteVersion}"
+	testImplementation "net.runelite:client:${runeLiteVersion}"
+	testImplementation "net.runelite:jshell:${runeLiteVersion}"
+	testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release.set(11)
+}
+
+test { systemProperty 'java.awt.headless', 'true' }
+
+tasks.register('run', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.rsmerch.RsMerchLauncher'
+	jvmArgs '-ea'
+	args '--developer-mode'
+}
+
+tasks.register('preview', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.rsmerch.PanelPreview'
+	args layout.buildDirectory.file('preview.png').get().asFile.absolutePath
+	systemProperty 'java.awt.headless', 'true'
+}
+
+tasks.register('scanSmoke', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.rsmerch.ScanSmoke'
+	args layout.buildDirectory.file('scan-smoke.json').get().asFile.absolutePath
+}
+
+tasks.register('wikiSmoke', JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.rsmerch.WikiSmoke'
+	args layout.buildDirectory.file('wiki-smoke.json').get().asFile.absolutePath
+}
