@@ -12,6 +12,8 @@ public final class DeskView {
     public Research research;
     public HistoryArchive.View archive=new HistoryArchive.View();
     public WikiPrices wiki=new WikiPrices();
+    public PriceHistory priceHistory=new PriceHistory();
+    public Performance.Dataset performance=new Performance.Dataset(),recoveredPerformance=new Performance.Dataset();
     public final List<Stock> stocks=new ArrayList<>();
     public final List<Offer> offers=new ArrayList<>();
     public final List<Trade> trades=new ArrayList<>();
@@ -49,6 +51,7 @@ public final class DeskView {
     public static DeskView build(Book b,Research r,long now,long cash,int stockDays,String account,String error) {
         DeskView v=new DeskView(); v.research=r; v.account=account; v.error=error; v.cash=cash;
         v.now=now; v.committed=b.committed(0); v.fillCount=b.fills.size();
+        v.performance=Performance.live(b);
         for (Book.Position p:b.positions.values()) {
             v.profit+=p.matchedProfit; v.stockCost+=p.knownCost(); v.catalog.put(p.item,p.name);
             if (p.quantity()==0 && p.unbackedSales==0) { continue; }

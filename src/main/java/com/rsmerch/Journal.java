@@ -79,11 +79,17 @@ public final class Journal implements AutoCloseable {
     public long lastSavedAt() { return lastSavedAt; }
     public void exportFills(Path target) throws IOException {
         try (BufferedWriter w=Files.newBufferedWriter(target,StandardCharsets.UTF_8,StandardOpenOption.CREATE_NEW)) {
-            w.write("event_id,item_id,buy,quantity,gross_gp,estimated_tax_gp,observed_from_utc,observed_at_utc\n");
+            w.write("event_id,item_id,buy,quantity,gross_gp,estimated_tax_gp,observed_from_utc,observed_at_utc,matched_units,unknown_cost_units,matched_cost_gp,estimated_profit_gp\n");
             for (Book.Fill f:book.fills) {
                 w.write(f.id+","+f.item+","+f.buy+","+f.quantity+","+f.gross+","+f.taxEstimate+","
-                    +java.time.Instant.ofEpochMilli(f.from)+","+java.time.Instant.ofEpochMilli(f.at)+"\n");
+                    +java.time.Instant.ofEpochMilli(f.from)+","+java.time.Instant.ofEpochMilli(f.at)+","+f.matchedQuantity+","+f.unknownQuantity+","+f.matchedCost+","+(f.matchedQuantity>0 ? f.profit : "")+"\n");
             }
+        }
+    }
+    public void exportValues(Path target) throws IOException {
+        try (BufferedWriter w=Files.newBufferedWriter(target,StandardCharsets.UTF_8,StandardOpenOption.CREATE_NEW)) {
+            w.write("observed_at_utc,confirmed_coins_outside_ge,estimated_trading_value_gp\n");
+            for (Event e:book.balances) { w.write(java.time.Instant.ofEpochMilli(e.at)+","+e.gross+","+e.cost+"\n"); }
         }
     }
     @Override public void close() throws IOException { try { lock.release(); } finally { channel.close(); } }

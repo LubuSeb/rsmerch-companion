@@ -29,7 +29,7 @@ final class WikiClient {
         if (Thread.currentThread().isInterrupted()) { throw new IOException("Market request cancelled"); }
         lastRequest=System.currentTimeMillis();
         Request request=new Request.Builder().url(BASE+route)
-            .header("User-Agent","RSMerch Companion/0.4.1 (+https://github.com/LubuSeb/rsmerch-companion)").build();
+            .header("User-Agent","RSMerch Companion/0.5.0 (+https://github.com/LubuSeb/rsmerch-companion)").build();
         try (Response response=http.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body()==null) { throw new IOException("Wiki price feed returned HTTP "+response.code()+". Try again later."); }
             if (response.body().contentLength()>12_000_000) { throw new IOException("Wiki response exceeded the size limit"); }

@@ -22,7 +22,7 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.*;
 import net.runelite.client.ui.*;
 
-@PluginDescriptor(name="RSMerch Companion", description="Private trade journal, patient price experiments and local scanner research", tags={"grand exchange","flipping","journal"})
+@PluginDescriptor(name="RSMerch Companion", description="Local GE performance, history, price guidance and market research", tags={"grand exchange","flipping","journal"})
 public final class RsMerchPlugin extends Plugin {
     @Inject private Client client;
     @Inject private ClientToolbar toolbar;
@@ -35,6 +35,8 @@ public final class RsMerchPlugin extends Plugin {
     private WikiClient wikiClient;
     private ExecutorService marketWorker;
     private volatile WikiPrices wiki=new WikiPrices();
+    private volatile PriceHistory priceHistory=new PriceHistory();
+    private final Set<Integer> analysing=ConcurrentHashMap.newKeySet();
     private final java.util.concurrent.atomic.AtomicBoolean refreshingWiki=new java.util.concurrent.atomic.AtomicBoolean();
     private ScheduledExecutorService worker;
     private Journal journal;
@@ -62,9 +64,9 @@ public final class RsMerchPlugin extends Plugin {
         worker=Executors.newSingleThreadScheduledExecutor(r -> { Thread t=new Thread(r,"rsmerch-journal"); t.setDaemon(true); return t; });
         wikiClient=new WikiClient(http); scanner=new ScanRunner(wikiClient);
         marketWorker=Executors.newSingleThreadExecutor(r -> { Thread t=new Thread(r,"rsmerch-wiki-prices"); t.setDaemon(true); return t; });
-        marketWorker.execute(() -> { wiki=WikiPrices.load(wikiPath(),gson); });
+        marketWorker.execute(() -> { wiki=WikiPrices.load(wikiPath(),gson); priceHistory=PriceHistory.load(priceHistoryPath(),gson); });
         Runnable create=() -> {
-            panel=new DeskPanel(this::manual,this::export,this::scan,this::refreshWiki);
+            panel=new DeskPanel(this::manual,this::export,this::scan,this::refreshWiki,this::analysePrice);
             BufferedImage icon=new BufferedImage(16,16,BufferedImage.TYPE_INT_ARGB);
             Graphics2D g=icon.createGraphics(); g.setColor(new Color(121,213,177));
             g.fillRect(1,10,3,5); g.fillRect(6,6,3,9); g.fillRect(11,1,3,14); g.dispose();
@@ -223,8 +225,9 @@ public final class RsMerchPlugin extends Plugin {
             try {
                 Path file=journal.path.getParent().resolve("fills-"+System.currentTimeMillis()+".csv");
                 journal.exportFills(file);
+                journal.exportValues(journal.path.getParent().resolve("values-"+System.currentTimeMillis()+".csv"));
                 if (archive!=null) { archive.export(journal.path.getParent().resolve("history-"+System.currentTimeMillis()+".csv"),journal.book); }
-                message("Exported live fills and available history CSVs to:\n"+file.getParent());
+                message("Exported live fills, saved value snapshots and available history CSVs to:\n"+file.getParent());
             } catch (Exception ex) { message("Export failed: "+ex.getMessage()); }
         });
     }
@@ -246,6 +249,27 @@ public final class RsMerchPlugin extends Plugin {
         if (!started) { panel.scanState(true,"A scan is already running…"); }
     }
     private Path wikiPath() { return RuneLite.RUNELITE_DIR.toPath().resolve("rsmerch").resolve("wiki-prices-v1.json"); }
+    private Path priceHistoryPath() { return RuneLite.RUNELITE_DIR.toPath().resolve("rsmerch").resolve("price-history-v1.json"); }
+    private void analysePrice(int item) {
+        if (!config.wikiEnabled()) { message("Enable Wiki market requests in RSMerch settings to analyse prices."); return; }
+        if (item<=0 || !analysing.add(item)) { return; }
+        panel.analysisState(item,"Analysing…");
+        marketWorker.execute(() -> {
+            try {
+                WikiPrices next=WikiPrices.fetch(wikiClient); next.save(wikiPath(),gson); wiki=next;
+                PriceHistory.Item evidence=PriceHistory.fetch(wikiClient,item,System.currentTimeMillis());
+                PriceHistory updated=priceHistory.with(item,evidence); updated.save(priceHistoryPath(),gson); priceHistory=updated;
+            } catch (Exception ex) {
+                PriceHistory.Item old=priceHistory.items.get(item),failed=new PriceHistory.Item();
+                if (old!=null) { failed.hours.addAll(old.hours); failed.fetchedAt=old.fetchedAt; }
+                failed.error=ex.getMessage()==null ? "Public price request failed; try again." : ex.getMessage();
+                priceHistory=priceHistory.with(item,failed);
+            } finally {
+                analysing.remove(item);
+                if (worker!=null && !worker.isShutdown()) { worker.execute(this::render); SwingUtilities.invokeLater(() -> panel.analysisState(item,null)); }
+            }
+        });
+    }
     private void refreshWiki() {
         if (!config.wikiEnabled()) { message("Enable Wiki market requests in RSMerch settings to fetch public prices."); return; }
         if (!refreshingWiki.compareAndSet(false,true)) { return; }
@@ -270,9 +294,10 @@ public final class RsMerchPlugin extends Plugin {
             Research research=Research.read(config.scannerFile(),config.historyFile(),b,now,config.planningCash());
             String title=switching ? "Opening account journal…" : token==null ? "Offline · showing saved observations" : displayName;
             DeskView view=DeskView.build(b,research,now,config.planningCash(),config.maxStockDays(),title,error);
-            view.wiki=wiki;
+            view.wiki=wiki; view.priceHistory=priceHistory;
             if (!switching && archive!=null) { view.archive=archive.view(b); }
             view.archive.error=archiveError;
+            view.recoveredPerformance=Performance.recovered(view.archive);
             boolean healthy=token!=null && !switching && journal!=null && error==null;
             String status=error!=null ? "Recording stopped · check Desk" : healthy ? "Recording · "+b.fills.size()+" fills" : token==null ? "Offline · saved trades retained" : "Opening account journal…";
             String detail=journal==null ? "Log in to begin a local account journal." : "Last disk save: "+DeskView.time(journal.lastSavedAt())+" · "+journal.recordCount()+" saved records · "+journal.path;

@@ -61,4 +61,13 @@ public class JournalTest {
             assertEquals(4500,j.book.position(1763,null).knownCost(),0.001);
         }
     }
+    @Test public void savedValueSnapshotReplaysWithoutBecomingInventoryOrProfit() throws Exception {
+        Path file=temp.getRoot().toPath().resolve("value.jsonl");
+        Event e=DeskPanel.event("NOTE"); e.source=Book.VALUE_SNAPSHOT_SOURCE; e.cost=123456L; e.gross=50000; e.note="Confirmed trading value";
+        try (Journal j=new Journal(file,net.runelite.http.api.RuneLiteAPI.GSON)) { j.append(e); }
+        try (Journal j=new Journal(file,net.runelite.http.api.RuneLiteAPI.GSON)) {
+            assertEquals(1,j.book.balances.size()); assertEquals(Long.valueOf(123456),j.book.balances.get(0).cost);
+            assertTrue(j.book.positions.isEmpty()); assertTrue(j.book.fills.isEmpty());
+        }
+    }
 }

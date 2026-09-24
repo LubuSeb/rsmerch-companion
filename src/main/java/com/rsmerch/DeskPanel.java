@@ -23,7 +23,10 @@ public final class DeskPanel extends PluginPanel {
     private final JPanel deck=new JPanel(new CardLayout());
     private final JPanel[] lists=new JPanel[4];
     private final JScrollPane[] scrolls=new JScrollPane[4];
-    private final JButton[] tabs=new JButton[4];
+    private final JButton[] tabs=new JButton[5];
+    private final PerformancePanel performance;
+    private final IntConsumer analyse;
+    private final Map<Integer,String> analysing=new HashMap<>();
     private final JButton scanButton=button("Scan market",true);
     private final JButton budget=button("1m GP",false);
     private final JButton wikiButton=button("Refresh Wiki prices",false);
@@ -50,16 +53,19 @@ public final class DeskPanel extends PluginPanel {
 
     public DeskPanel(BiConsumer<String,Event> save,Runnable export) { this(save,export,n -> {}); }
     public DeskPanel(BiConsumer<String,Event> save,Runnable export,LongConsumer scan) { this(save,export,scan,() -> {}); }
-    public DeskPanel(BiConsumer<String,Event> save,Runnable export,LongConsumer scan,Runnable refreshWiki) {
-        super(false); this.save=save; this.scan=scan;
+    public DeskPanel(BiConsumer<String,Event> save,Runnable export,LongConsumer scan,Runnable refreshWiki) { this(save,export,scan,refreshWiki,id -> {}); }
+    public DeskPanel(BiConsumer<String,Event> save,Runnable export,LongConsumer scan,Runnable refreshWiki,IntConsumer analyse) {
+        super(false); this.save=save; this.scan=scan; this.analyse=analyse;
+        performance=new PerformancePanel(event -> { if (loggedIn()) { save.accept(accountToken,event); } },
+            (recovered,name) -> { tradeSource.setSelectedIndex(recovered ? 1 : 0); tradeSearch.setText(name); selectTab(3); },refreshWiki);
         setLayout(new BorderLayout()); setBackground(BG); setBorder(new EmptyBorder(0,0,0,0));
         setPreferredSize(new Dimension(225,690));
         JPanel top=column(BG); top.setBorder(new EmptyBorder(12,10,0,10));
         JPanel brand=row(); brand.add(label("RSMERCH",BOLD.deriveFont(16f),TEXT),BorderLayout.WEST);
         top.add(brand); top.add(gap(5)); top.add(recording); top.add(gap(12));
-        JPanel nav=new JPanel(new GridLayout(1,4,2,0)); nav.setOpaque(false); nav.setAlignmentX(0);
-        String[] titles={"Desk","Offers","Finds","History"};
-        for (int i=0;i<4;i++) {
+        JPanel nav=new JPanel(new GridLayout(2,3,2,2)); nav.setOpaque(false); nav.setAlignmentX(0);
+        String[] titles={"Stock","Offers","Finds","History","Results"};
+        for (int i:new int[]{4,0,1,2,3}) {
             final int index=i; tabs[i]=button(titles[i],false); tabs[i].setBorder(new EmptyBorder(7,0,7,0));
             tabs[i].addActionListener(e -> selectTab(index)); nav.add(tabs[i]);
         }
@@ -84,7 +90,7 @@ public final class DeskPanel extends PluginPanel {
             if (i==3) { page.add(tradeControls(),BorderLayout.NORTH); page.add(actions(buttonAction("Add note",this::note),buttonAction("Export CSV",export)),BorderLayout.SOUTH); }
             deck.add(page,Integer.toString(i));
         }
-        add(deck,BorderLayout.CENTER); selectTab(0);
+        deck.add(performance,"4"); add(deck,BorderLayout.CENTER); selectTab(4);
         show(DeskView.build(new Book(),new Research(),System.currentTimeMillis(),cash,7,"Waiting for account",null),null);
         tradeSource.setSelectedIndex(1);
     }
@@ -104,6 +110,7 @@ public final class DeskPanel extends PluginPanel {
         }); controls.add(label("Search history",SMALL,MUTED)); controls.add(gap(3)); controls.add(tradeSearch); return controls;
     }
     void selectHistorySource(int index) { tradeSource.setSelectedIndex(index); }
+    void selectPerformanceSource(int index) { performance.selectSource(index); }
     private JPanel findControls() {
         JPanel controls=column(BG); controls.setBorder(new EmptyBorder(2,10,7,10));
         JPanel buttons=new JPanel(new GridLayout(1,2,5,0)); buttons.setOpaque(false); buttons.setAlignmentX(0);
@@ -160,7 +167,7 @@ public final class DeskPanel extends PluginPanel {
     public void show(DeskView value,String token) {
         view=value; accountToken=token;
         if (!cashEdited) { cash=value.cash; budget.setText(compact(cash)+" GP"); }
-        renderDesk(); renderOffers(); renderFinds(); renderTrades(); updateScanStatus();
+        renderDesk(); renderOffers(); renderFinds(); renderTrades(); performance.show(value); updateScanStatus();
         wikiStatus.setText(value.wiki.fetchedAt>0 ? "Fetched "+DeskView.age(value.wiki.fetchedAt,value.now) : "Click to load public prices");
     }
     private void renderDesk() {
@@ -182,6 +189,7 @@ public final class DeskPanel extends PluginPanel {
             c.add(pair("Break-even ask",s.breakEven>0 ? DeskView.number(s.breakEven)+" GP" : "Needs cost"));
             c.add(gap(6)); c.add(label("24h: +"+compact(s.bought)+" bought / "+compact(s.sold)+" sold",SMALL,MUTED));
             if (s.warning!=null) { c.add(wrap(s.warning,SMALL,GOLD)); }
+            addGuidance(c,s.item);
             c.add(gap(7)); JButton edit=buttonAction("Edit stock",() -> stock(false,s)); c.add(edit); addCard(p,c);
         }
         p.add(wrap("Recorded fills only. Reconcile bank stock, transfers and offline activity.",SMALL,MUTED)); finish(0,y);
@@ -197,7 +205,7 @@ public final class DeskPanel extends PluginPanel {
             bar.setValue(o.total>0 ? (int)Math.min(1000,1000.0*o.filled/o.total) : 0); bar.setForeground(o.buy ? GOLD : MINT);
             bar.setBackground(LINE); bar.setBorder(null); bar.setPreferredSize(new Dimension(100,4)); bar.setMaximumSize(new Dimension(Integer.MAX_VALUE,4)); bar.setAlignmentX(0); c.add(bar);
             c.add(gap(5)); c.add(pair(DeskView.number(o.filled)+" / "+DeskView.number(o.total),"filled"));
-            addWiki(c,o); addCard(p,c);
+            addWiki(c,o); addGuidance(c,o.item); addCard(p,c);
         }
         p.add(wrap("Buy limits and queue position are not visible. Offers are snapshots from your connected client.",SMALL,MUTED)); finish(1,y);
     }
@@ -221,6 +229,42 @@ public final class DeskPanel extends PluginPanel {
         }
         card.add(gap(6)); card.add(wrap("Reported trades, not available offers. Your own fills can appear here.",SMALL,MUTED));
         card.add(gap(6)); card.add(buttonAction("Wiki chart",() -> openChart(offer.item)));
+    }
+    public void analysisState(int item,String status) {
+        if (status==null) { analysing.remove(item); } else { analysing.put(item,status); }
+        if (view!=null) { renderOffers(); renderDesk(); }
+    }
+    private void addGuidance(JPanel card,int item) {
+        PriceHistory.Item evidence=view.priceHistory.items.get(item);
+        PriceGuidance.Advice advice=PriceGuidance.assess(item,evidence,view.wiki.quotes.get(item),view.now);
+        card.add(gap(9)); card.add(section("PRICE GUIDANCE","7 DAYS"));
+        card.add(wrap(advice.status,BOLD,advice.actionable ? MINT : MUTED));
+        if (advice.sellLow>0) {
+            card.add(pair("Patient ask range",DeskView.number(advice.sellLow)+"–"+DeskView.number(advice.sellHigh)));
+            card.add(pair("Net / unit after tax",DeskView.number(advice.sellLow-Tax.unit(item,advice.sellLow,view.now))+"–"+DeskView.number(advice.sellHigh-Tax.unit(item,advice.sellHigh,view.now))));
+            if (advice.buyLow>0) { card.add(pair("Passive bid range",DeskView.number(advice.buyLow)+"–"+DeskView.number(advice.buyHigh))); }
+            card.add(pair("Faster-exit reference",advice.fastExit>0 ? DeskView.number(advice.fastExit)+" GP" : "No fresh trade"));
+            card.add(wrap(advice.highHours+" active buying hours across "+advice.days+" days · "+DeskView.number(advice.highUnits)+" reported units",SMALL,MUTED));
+            Performance.Holding held=view.performance.holdings.stream().filter(h -> h.item==item).findFirst().orElse(null);
+            if (held!=null && held.known>0) {
+                double basis=held.cost/held.known;
+                double low=advice.sellLow-Tax.unit(item,advice.sellLow,view.now)-basis;
+                double high=advice.sellHigh-Tax.unit(item,advice.sellHigh,view.now)-basis;
+                card.add(wrap("Estimated gain on known-cost units: "+DeskView.number(low)+" to "+DeskView.number(high)+" GP each.",SMALL,low<0 ? GOLD : MUTED));
+                if (high<0) { card.add(wrap("This range is below your known break-even; waiting for recovery is a separate risk.",SMALL,GOLD)); }
+            }
+            List<Performance.Execution> own=new ArrayList<>();
+            for (Performance.Execution e:view.performance.executions) { if (e.item==item && !e.buy && e.at>=view.now-7*Book.DAY) { own.add(e); } }
+            long units=own.stream().mapToLong(e -> e.quantity).sum(),gross=own.stream().mapToLong(e -> e.gross).sum();
+            if (units>0) { card.add(wrap("Your recorded sells: "+DeskView.number(units)+" units at "+DeskView.number((double)gross/units)+" GP average gross, across "+own.size()+" observed fills.",SMALL,MUTED)); }
+            JPanel copies=new JPanel(new GridLayout(1,2,4,0)); copies.setOpaque(false); copies.setAlignmentX(0);
+            copies.add(price("ASK LOW",advice.sellLow,MINT,advice.actionable)); copies.add(price("ASK HIGH",advice.sellHigh,MINT,advice.actionable)); card.add(copies);
+        }
+        if (advice.reason!=null) { card.add(wrap(advice.reason,SMALL,MUTED)); }
+        for (String warning:advice.warnings) { card.add(gap(3)); card.add(wrap(warning,SMALL,GOLD)); }
+        if (evidence!=null) { card.add(label("Analysed "+DeskView.age(evidence.fetchedAt,view.now),SMALL,MUTED)); }
+        JButton fetch=buttonAction(analysing.containsKey(item) ? analysing.get(item) : evidence==null ? "Analyse price" : "Refresh analysis",() -> analyse.accept(item));
+        fetch.setEnabled(!analysing.containsKey(item)); card.add(gap(5)); card.add(fetch);
     }
     private void renderFinds() {
         if (view==null) { return; }

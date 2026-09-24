@@ -5,11 +5,13 @@ import java.util.*;
 /** Replayable accounting model. A recorded balance is never a claim to see the bank. */
 public final class Book {
     public static final long DAY = 86_400_000L;
+    static final String VALUE_SNAPSHOT_SOURCE="manual trading value snapshot";
     public final Map<Integer, Position> positions = new TreeMap<>();
     public final Map<Integer, Event> slots = new TreeMap<>();
     public final List<Fill> fills = new ArrayList<>();
     public final List<String> notices = new ArrayList<>();
     public final List<Event> notes = new ArrayList<>();
+    public final List<Event> balances = new ArrayList<>();
     private final Map<Integer, String> offerIds = new HashMap<>();
     public final List<Trial> trials = new ArrayList<>();
     private final Map<Integer, Trial> openTrials = new HashMap<>();
@@ -54,6 +56,8 @@ public final class Book {
         public long taxEstimate;
         public long from;
         public long at;
+        public long matchedQuantity, unknownQuantity;
+        public double matchedCost, profit;
     }
     public static final class Trial {
         public String id;
@@ -79,7 +83,7 @@ public final class Book {
 
     public void accept(Event e) {
         validate(e);
-        if ("NOTE".equals(e.kind)) { notes.add(e); return; }
+        if ("NOTE".equals(e.kind)) { notes.add(e); if (VALUE_SNAPSHOT_SOURCE.equals(e.source)) { balances.add(e); } return; }
         if ("OPENING".equals(e.kind) || "STOCK".equals(e.kind)) {
             Position p = position(e.item, e.name);
             if ("OPENING".equals(e.kind)) {
@@ -178,12 +182,16 @@ public final class Book {
         double netUnit=(double)(f.gross-f.taxEstimate)/f.quantity;
         while (left>0 && !p.lots.isEmpty()) {
             Lot l=p.lots.peekFirst(); long q=Math.min(left,l.quantity);
-            if (l.known) { p.matchedProfit+=q*(netUnit-l.unitCost); p.matchedSales+=q; }
-            else { p.unknownCostSales+=q; }
+            if (l.known) {
+                double profit=q*(netUnit-l.unitCost);
+                p.matchedProfit+=profit; p.matchedSales+=q;
+                f.profit+=profit; f.matchedCost+=q*l.unitCost; f.matchedQuantity+=q;
+            }
+            else { p.unknownCostSales+=q; f.unknownQuantity+=q; }
             l.quantity-=q; left-=q;
             if (l.quantity == 0) { p.lots.removeFirst(); }
         }
-        if (left>0) { p.unbackedSales+=left; p.unknownCostSales+=left; }
+        if (left>0) { p.unbackedSales+=left; p.unknownCostSales+=left; f.unknownQuantity+=left; }
     }
 
     public long volume(int item, boolean buy, long since, long until) {
@@ -215,6 +223,9 @@ public final class Book {
         }
         if (("OPENING".equals(e.kind) || "STOCK".equals(e.kind)) && (e.item<=0 || e.source==null)) {
             throw new IllegalArgumentException("Stock needs an item and provenance");
+        }
+        if ("NOTE".equals(e.kind) && VALUE_SNAPSHOT_SOURCE.equals(e.source) && e.cost==null) {
+            throw new IllegalArgumentException("Value snapshot needs a total and provenance");
         }
     }
 }

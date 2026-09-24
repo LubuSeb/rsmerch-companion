@@ -9,7 +9,7 @@ repositories {
 }
 
 group = 'com.rsmerch'
-version = '0.4.1'
+version = '0.5.0'
 def runeLiteVersion = '1.12.39'
 
 dependencies {
@@ -50,4 +50,9 @@ tasks.register('wikiSmoke', JavaExec) {
 	classpath = sourceSets.test.runtimeClasspath
 	mainClass = 'com.rsmerch.WikiSmoke'
 	args layout.buildDirectory.file('wiki-smoke.json').get().asFile.absolutePath
+}
+tasks.register('priceSmoke', JavaExec) {
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.rsmerch.PriceSmoke'
+    args layout.buildDirectory.get().asFile.absolutePath
 }

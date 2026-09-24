@@ -36,17 +36,24 @@ public final class PanelPreview {
                 recovered.recordedAt=now-Book.DAY; recovered.gross=null; recovered.tax=null;
                 HistoryArchive.Entry saved=new HistoryArchive.Entry(); saved.row=recovered; saved.source="runelite"; saved.id="demo"; saved.capturedAt=now;
                 view.archive.saved.add(saved);
+                HistoryArchive.Row historicSale=HistoryScreen.parse(1763,100,"Sold:","Red dye<br>x 100","88,200 coins<br>(90,000 - 1,800)<br>= 882 each");
+                historicSale.recordedAt=now-3_600_000;
+                HistoryArchive.Entry historicEntry=new HistoryArchive.Entry(); historicEntry.row=historicSale; historicEntry.source="runelite"; historicEntry.id="demo-sale"; historicEntry.capturedAt=now;
+                view.archive.saved.add(historicEntry); view.recoveredPerformance=Performance.recovered(view.archive);
+                PriceHistory.Item evidence=new PriceHistory.Item(); evidence.fetchedAt=now;
+                for (int i=1;i<=120;i++) { PriceHistory.Hour h=new PriceHistory.Hour(); h.at=now-i*3_600_000; h.high=800+i%4*30; h.low=440+i%5; h.highVolume=20; h.lowVolume=30; evidence.hours.add(h); }
+                view.priceHistory=view.priceHistory.with(1763,evidence);
                 HistoryArchive.Row screenRow=HistoryScreen.parse(1763,20,"Sold:","Red dye<br>x 20","17,640 coins<br>(18,000 - 360)<br>= 882 each");
                 HistoryArchive.Entry screenEntry=new HistoryArchive.Entry(); screenEntry.row=screenRow; screenEntry.source="ge-screen"; screenEntry.id="demo-screen"; screenEntry.capturedAt=now;
                 HistoryArchive.Capture capture=new HistoryArchive.Capture(); capture.at=now; capture.id="demo"; capture.entries.add(screenEntry); view.archive.captures.add(capture);
-                BufferedImage composite=new BufferedImage(1165,800,BufferedImage.TYPE_INT_RGB);
-                Graphics2D g=composite.createGraphics(); g.setColor(new Color(12,15,18)); g.fillRect(0,0,1165,800);
-                for (int tab=0;tab<5;tab++) {
+                BufferedImage composite=new BufferedImage(1400,1050,BufferedImage.TYPE_INT_RGB);
+                Graphics2D g=composite.createGraphics(); g.setColor(new Color(12,15,18)); g.fillRect(0,0,1400,1050);
+                for (int tab=0;tab<6;tab++) {
                     DeskPanel panel=new DeskPanel((token,event) -> {},() -> {}); panel.show(view,"demo");
                     panel.recordingStatus("Recording · demo fills","Synthetic preview",true);
-                    panel.setSize(225,800); panel.selectTab(Math.min(tab,3)); if (tab>=3) { panel.selectHistorySource(tab-2); }
+                    panel.setSize(225,1050); panel.selectTab(new int[]{4,4,1,0,2,3}[tab]); if (tab==1) { panel.selectPerformanceSource(1); } if (tab==5) { panel.selectHistorySource(1); }
                     layout(panel);
-                    Graphics2D cell=(Graphics2D)g.create(tab*235,0,225,800); panel.printAll(cell); cell.dispose();
+                    Graphics2D cell=(Graphics2D)g.create(tab*235,0,225,1050); panel.printAll(cell); cell.dispose();
                 }
                 g.dispose(); File file=new File(args[0]); file.getParentFile().mkdirs(); ImageIO.write(composite,"png",file);
                 System.out.println("Synthetic Swing preview: "+file.getAbsolutePath());
