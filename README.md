@@ -6,12 +6,13 @@ A local Grand Exchange journal and public-market research sidebar for RuneLite.
 
 ## Features
 
-- **Results:** item leaderboards for profit/loss, proceeds and units sold; period filters; cumulative matched profit; a buy/sell detail table; and saved trading-value snapshots. Recorded fills and approximate recovered-history results are separate selectable sources.
-- **Stock:** recorded stock, known acquisition costs, estimated FIFO profit, opening-stock reconciliation and separately recorded gathered items.
-- **Offers:** observed GE slots alongside Wiki last instant-buy and instant-sell trades, each with its source timestamp; recent hourly averages, reported volume and chart links. Refresh prices explicitly with the button.
-- **Finds:** a user-triggered Java scan of mapped items, 24 complete hourly windows and up to 70 candidate histories. Results show estimated margins after tax, historical price charts and small-test ceilings. No background scans run.
-- **History:** recent observed fills, an archive of the connected account's existing RuneLite GE records, and snapshots captured when the user opens the in-game GE History screen. Search, archive paging, notes and separate live/history CSV exports are included.
-- **Price guidance:** choose **Analyse price** on an offer or stock item for a patient ask range, passive bid range and fresh faster-exit reference. Shows tax, estimated gain on known-cost units, personal observed sales and the supporting public evidence. All requests and offer decisions are manual.
+- **Results:** profit leaderboard and progress, defaulting to recovered history when available. Use the period selector and **Filters** for source and sort; **Details** opens each item's buys, sells and returns. The **Trading value** view uses current recorded holdings.
+- **Stock:** quantity, known cost and break-even price, with editing and gathered-stock entry.
+- **Offers:** your price and fills, Wiki instant-buy/sell prices, and a suggested range after manual **Analyse**. Stale data and below-cost ranges are flagged; evidence, volume and copyable guide prices are in **Details**.
+- **Finds:** manual market scan, after-tax margins, copyable prices, reported volume and test-size ceilings. Search/sort controls are under **Filters**, and charts and limits under **Details**.
+- **History:** observed fills, recovered RuneLite records and GE History captures. Includes item search, archive paging, notes and separate CSV exports. Totals, tax and source information are in **Details**.
+
+The sidebar keeps primary figures visible and puts explanations behind explicit detail controls. All requests and offer decisions are manual; no background scans run.
 
 ## History and accounting
 
@@ -21,7 +22,7 @@ Recovered history is evidence, not an opening inventory balance. RuneLite record
 
 Results can estimate FIFO outcomes within the deduplicated RuneLite archive, using recorded order and estimated historical tax. Purchases at the exact same recorded timestamp as a sale are not assumed to precede it. Missing trades, rounded prices and observation times can change this estimate. GE screen captures are excluded from performance aggregation because they can overlap and lack dates. Neither source is presented as lifetime profit. A period filter uses prior purchase costs when matching sales inside the selected period.
 
-**Trading value & stock** values recorded units at fresh Wiki instant-sell references after estimated tax. Missing-price units are excluded explicitly; unknown-cost units do not create unrealised profit. To save total trading value, first reconcile all holdings, then enter coins outside the GE and confirm the stock balance. The snapshot adds that cash to recorded stock value and coins still inside observed GE offers. It is a hypothetical valuation, not guaranteed liquidation proceeds. The scanner budget is never used as cash. Changes between saved snapshots include deposits, withdrawals and reconciliation, not only trading returns. Value snapshots are compatible journal notes and export to a separate CSV.
+**Trading value** values recorded units at fresh Wiki instant-sell references after estimated tax. Missing-price units are excluded explicitly; unknown-cost units do not create unrealised profit. To save total trading value, first reconcile all holdings, then enter coins outside the GE and confirm the stock balance. The snapshot adds that cash to recorded stock value and coins still inside observed GE offers. It is a hypothetical valuation, not guaranteed liquidation proceeds. The scanner budget is never used as cash. Changes between saved snapshots include deposits, withdrawals and reconciliation, not only trading returns. Value snapshots are compatible journal notes and export to a separate CSV.
 
 Use **Add stock** to record current total holdings and their known average purchase cost. Leave cost blank when unknown. Unknown cost is never treated as zero profit cost. **Collected** explicitly adds gathered stock with zero GP acquisition cost; time and travel costs are not included.
 
@@ -37,7 +38,7 @@ Ranges are experiments, not confidence intervals or fill-time forecasts. Stale q
 
 Local account journals and archives are stored under `.runelite/rsmerch/<derived-account-key>/`. The account key is derived from the client account hash. The plugin reads matching RuneLite profile identity/trade-history settings through ConfigManager and already-loaded GE History widgets. It does not read login credentials.
 
-**Refresh Wiki prices**, **Analyse price** and **Scan market** request public data from `https://prices.runescape.wiki/api/v1/osrs/` using an identifying User-Agent. Refresh uses bulk prices. Analysis and scanning also send public item IDs in history requests. The Wiki receives ordinary connection information such as your IP address. Account identity, offers, holdings and personal history are not uploaded. Disable **Wiki market requests** in plugin settings to prevent these requests. Wiki chart buttons open the selected public item page in your browser.
+**Refresh Wiki prices**, **Analyse** and **Scan market** request public data from `https://prices.runescape.wiki/api/v1/osrs/` using an identifying User-Agent. Refresh uses bulk prices. Analysis and scanning also send public item IDs in history requests. The Wiki receives ordinary connection information such as your IP address. Account identity, offers, holdings and personal history are not uploaded. Disable **Wiki market requests** in plugin settings to prevent these requests. Wiki chart buttons open the selected public item page in your browser.
 
 Network requests run off the game and Swing threads, have timeouts, and are cached and spaced. Scans retain the last usable report on failure. The plugin runs no external program, downloads no executable code, and contains no AI service integration.
 
